@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from 'react-native';
 
 const ToggleButton = ({ label, value, onToggle }) => {
   const handleToggle = () => {
@@ -6,9 +7,7 @@ const ToggleButton = ({ label, value, onToggle }) => {
   };
 
   return (
-    <Button onPress={handleToggle}>
-     title = {label}
-    </Button>
+    <Button onPress={handleToggle} title={label} />
   );
 };
 

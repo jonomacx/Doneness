@@ -43,3 +43,6 @@ const insertItem = async () => {
 };
 
 insertItem();
+
+//run on cmd line by typing node tableInsert.js
+//https://eu-west-2.console.aws.amazon.com/dynamodbv2/home?region=eu-west-2#item-explorer?table=tasks
