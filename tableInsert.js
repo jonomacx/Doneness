@@ -19,11 +19,11 @@ const task = {
     dateCreated: new Date().toISOString(),
     taskId: uuidv4(),
     parentTaskId: uuidv4(),
-    taskName: 'Sample Task',
+    taskName: 'Task To Do Today #2',
     priorityFlag: true,
     toughnessFlag: false,
-    dateRequired: new Date('2023-06-10').toISOString(),
-    dateCompleted: new Date('2023-06-09').toISOString(),
+    dateRequired: new Date('2023-06-15').toISOString(),
+    //dateCompleted: new Date('2023-06-09').toISOString(),
 };
 
 const params = {
