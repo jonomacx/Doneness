@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import ToggleButton from './ToggleButton';
 //import ToggleSwitch from './ToggleSwitch';
 
-import { docClient as dynamodb, TABLE } from './db';
+import { getOpenTasks } from './taskStore';
 import { today } from './dates';
 
 // Keep only the tasks that pass the test, but if none do, keep them all.
@@ -22,23 +22,7 @@ const TaskTracker = () => {
   useEffect(() => {
     async function fetchTasks() {
       try {
-        //all of this owner's tasks that have not been completed
-        const params = {
-          TableName: TABLE,
-          FilterExpression: 'ownerId = :ownerId AND attribute_not_exists(dateCompleted)',
-          ExpressionAttributeValues: {
-            ':ownerId': 'Jono',
-          },
-        };
-
-        //a scan returns at most 1MB at a time, so keep going until it's all read
-        let items = [];
-        let result;
-        do {
-          result = await dynamodb.scan(params).promise();
-          items = items.concat(result.Items);
-          params.ExclusiveStartKey = result.LastEvaluatedKey;
-        } while (result.LastEvaluatedKey);
+        const items = await getOpenTasks('Jono');
 
         //due today if there are any, then high priority if any, then high toughness if any
         const requiredDate = today();
