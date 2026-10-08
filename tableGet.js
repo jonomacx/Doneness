@@ -1,15 +1,6 @@
-const AWS = require('aws-sdk'),
-      {
-        DynamoDB
-      } = require("@aws-sdk/client-dynamodb");
 
-AWS.config.update({
-  region: 'eu-west-2',
-  accessKeyId: 'AKIA5GUIGRJ7MRUV4AWG',
-  secretAccessKey: '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',
-});
+const { docClient: dynamodb } = require('./db');
 
-const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 const params = {
     TableName: 'tasks', // Replace with your table name
@@ -28,7 +19,7 @@ dynamodb.get(params, function (error, data) {
   });
 
 
-//run on cmd line by typing node tableGet.js
+//run on cmd line by typing "node tableGet.js"
 //https://eu-west-2.console.aws.amazon.com/dynamodbv2/home?region=eu-west-2#item-explorer?table=tasks
 
 

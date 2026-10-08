@@ -1,15 +1,6 @@
-const AWS = require('aws-sdk'),
-      {
-        DynamoDB
-      } = require("@aws-sdk/client-dynamodb");
 
-AWS.config.update({
-  region: 'eu-west-2',
-  accessKeyId: 'AKIA5GUIGRJ7MRUV4AWG',
-  secretAccessKey: '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',
-});
+const { docClient: dynamodb } = require('./db');
 
-const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 //const taskNameConst = "Sample Task2";
 //const filterExpression = `attribute_not_exists(taskName) OR taskName = :`;
@@ -84,6 +75,6 @@ const fetchTasks = async () => {
 
 //fetchTasks();
 
-//run on cmd line by typing node tableGet.js
+//run on cmd line by typing "node tablefetch.js"
 //https://eu-west-2.console.aws.amazon.com/dynamodbv2/home?region=eu-west-2#item-explorer?table=tasks
 
