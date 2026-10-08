@@ -3,9 +3,10 @@
 
 const { v4: uuidv4 } = require('uuid');
 const { dynamodb, docClient, TABLE, target } = require('./db');
+const dates = require('./dates');
 
-const today = new Date().toISOString().split('T')[0] + 'T00:00:00.000Z';
-const tomorrow = new Date(Date.now() + 864e5).toISOString().split('T')[0] + 'T00:00:00.000Z';
+const today = dates.today();
+const tomorrow = dates.tomorrow();
 
 const samples = [
   { taskName: 'Tough and priority task due today', dateRequired: today, priorityFlag: true, toughnessFlag: true },

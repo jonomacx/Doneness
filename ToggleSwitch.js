@@ -1,16 +1,12 @@
 import React from 'react';
 import { Switch } from 'react-native-switch';
 
-
-state = { switchValue: false };
-ToggleSwitch = () => {
-    this.setState({ switchValue: !this.state.switchValue });
-};
-
-export const App = () => (
-    <Switch
-    value={this.state.switchValue}
-    onValueChange={this.ToggleSwitch}
+// On/off switch. The parent keeps the value, the same way it does for ToggleButton:
+//   <ToggleSwitch value={clearDistractions} onToggle={setClearDistractions} />
+const ToggleSwitch = ({ value, onToggle }) => (
+  <Switch
+    value={value}
+    onValueChange={onToggle}
     disabled={false}
     activeText={'On'}
     inActiveText={'Off'}
@@ -18,5 +14,7 @@ export const App = () => (
     backgroundInactive={'gray'}
     circleActiveColor={'#30a566'}
     circleInActiveColor={'#000000'}
-    />
-)
+  />
+);
+
+export default ToggleSwitch;
