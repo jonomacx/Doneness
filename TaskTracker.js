@@ -13,28 +13,34 @@ const narrow = (list, test) => {
   return matches.length ? matches : list;
 };
 
+const pickRandom = (list) => list[Math.floor(Math.random() * list.length)] || null;
+
 const TaskTracker = () => {
 
   const [takeTask, setTakeTask] = useState(false);
-  const [tasks, setTasks] = useState([]);
+  const [task, setTask] = useState(undefined); //undefined while loading, null if there are none
   const [clearDistractions, setClearDistractions] = useState(false);
+  const [toughChoice, setToughChoice] = useState(null); //{ tough, easy } when the user gets to choose
 
   useEffect(() => {
     async function fetchTasks() {
       try {
         const items = await getOpenTasks('Jono');
 
-        //due today if there are any, then high priority if any, then high toughness if any
+        //due today if there are any, then high priority if any
         const requiredDate = today();
         let picked = narrow(items, (task) => task.dateRequired === requiredDate);
         picked = narrow(picked, (task) => task.priorityFlag);
-        picked = narrow(picked, (task) => task.toughnessFlag);
 
-        //oldest first (dateCreated is an ISO string, so it sorts as text)
-        picked.sort((a, b) => a.dateCreated.localeCompare(b.dateCreated));
-
-        //to only show the first task, use: setTasks(picked.slice(0, 1));
-        setTasks(picked);
+        //if there are both tough and easy tasks, let the user choose; otherwise pick one at random
+        const tough = picked.filter((task) => task.toughnessFlag);
+        const easy = picked.filter((task) => !task.toughnessFlag);
+        if (tough.length && easy.length) {
+          setToughChoice({ tough, easy });
+          setTask(null);
+        } else {
+          setTask(pickRandom(picked));
+        }
       } catch (error) {
         console.error('Error retrieving tasks:', error);
       }
@@ -50,6 +56,11 @@ const TaskTracker = () => {
 
   const handleClearDistractionsToggle = (value) => {
     setClearDistractions(value);
+  };
+
+  const handleToughToggle = (value) => {
+    setTask(pickRandom(value ? toughChoice.tough : toughChoice.easy));
+    setToughChoice(null);
   };
 
   if (!takeTask) {
@@ -72,18 +83,35 @@ const TaskTracker = () => {
     );
   }
 
+  if (task === undefined) {
+    return <Text>Finding your task...</Text>;
+  }
+
+  if (toughChoice) {
+    return (
+      <View>
+        <Text>Do you want to try and do a tough task now?{"\n"}</Text>
+        <ToggleButton label="Yes" value={true} onToggle={handleToughToggle} />
+        <Text></Text>
+        <ToggleButton label="No" value={false} onToggle={handleToughToggle} />
+      </View>
+    );
+  }
+
+  if (!task) {
+    return <Text>No tasks to do. Nice work!</Text>;
+  }
+
   return (
     <View>
-      {tasks.map((task) => (
-        <Text key={task.taskId}>
-          {task.taskName}{"\n"}
-          Created: {task.dateCreated}{"\n"}
-          Required: {task.dateRequired}{"\n"}
-          Priority: {task.priorityFlag ? 'High' : 'Normal'}{"\n"}
-          Toughness: {task.toughnessFlag ? 'High' : 'Normal'}{"\n"}
-          Parent Task: {task.parentTaskId}{"\n"}
-        </Text>
-      ))}
+      <Text>
+        {task.taskName}{"\n"}
+        Created: {task.dateCreated}{"\n"}
+        Required: {task.dateRequired}{"\n"}
+        Priority: {task.priorityFlag ? 'High' : 'Normal'}{"\n"}
+        Toughness: {task.toughnessFlag ? 'High' : 'Normal'}{"\n"}
+        Parent Task: {task.parentTaskId}{"\n"}
+      </Text>
     </View>
   );
 };
