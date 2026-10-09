@@ -16,7 +16,7 @@ const narrow = (list, test) => {
 const TaskTracker = () => {
 
   const [takeTask, setTakeTask] = useState(false);
-  const [tasks, setTasks] = useState([]);
+  const [task, setTask] = useState(undefined); //undefined while loading, null if there are none
   const [clearDistractions, setClearDistractions] = useState(false);
 
   useEffect(() => {
@@ -30,11 +30,8 @@ const TaskTracker = () => {
         picked = narrow(picked, (task) => task.priorityFlag);
         picked = narrow(picked, (task) => task.toughnessFlag);
 
-        //oldest first (dateCreated is an ISO string, so it sorts as text)
-        picked.sort((a, b) => a.dateCreated.localeCompare(b.dateCreated));
-
-        //to only show the first task, use: setTasks(picked.slice(0, 1));
-        setTasks(picked);
+        //if more than one task is left, pick one at random
+        setTask(picked[Math.floor(Math.random() * picked.length)] || null);
       } catch (error) {
         console.error('Error retrieving tasks:', error);
       }
@@ -72,18 +69,24 @@ const TaskTracker = () => {
     );
   }
 
+  if (task === undefined) {
+    return <Text>Finding your task...</Text>;
+  }
+
+  if (!task) {
+    return <Text>No tasks to do. Nice work!</Text>;
+  }
+
   return (
     <View>
-      {tasks.map((task) => (
-        <Text key={task.taskId}>
-          {task.taskName}{"\n"}
-          Created: {task.dateCreated}{"\n"}
-          Required: {task.dateRequired}{"\n"}
-          Priority: {task.priorityFlag ? 'High' : 'Normal'}{"\n"}
-          Toughness: {task.toughnessFlag ? 'High' : 'Normal'}{"\n"}
-          Parent Task: {task.parentTaskId}{"\n"}
-        </Text>
-      ))}
+      <Text>
+        {task.taskName}{"\n"}
+        Created: {task.dateCreated}{"\n"}
+        Required: {task.dateRequired}{"\n"}
+        Priority: {task.priorityFlag ? 'High' : 'Normal'}{"\n"}
+        Toughness: {task.toughnessFlag ? 'High' : 'Normal'}{"\n"}
+        Parent Task: {task.parentTaskId}{"\n"}
+      </Text>
     </View>
   );
 };
