@@ -16,3 +16,13 @@ The app and the `table*.js` scripts read their connection from `db.js` and use t
 Set `DYNAMO_ENDPOINT=aws` and give it credentials the usual way (`aws configure`).
 Do not put keys in the code.
 Note that a browser or phone app should not hold AWS keys at all. A real deployment needs a small backend or Cognito in between.
+
+## Demo website (GitHub Pages)
+
+Every push to `main` builds the web version and publishes it to GitHub Pages (`.github/workflows/pages.yml`).
+The website has no database, so it shows the sample tasks from `sampleTasks.js` instead (see `taskStore.js`).
+On `localhost` and on a phone the app still uses DynamoDB.
+
+One-time setup: in the repo's Settings → Pages, set Source to "GitHub Actions".
+
+To build the site yourself: `WEB_PUBLIC_URL=/Doneness/ npx expo export:web` (output goes in `web-build/`).
