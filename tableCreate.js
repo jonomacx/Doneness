@@ -17,7 +17,7 @@ const params = {
     { AttributeName: 'dateCreated', AttributeType: 'S' },
  /* 
     { AttributeName: 'taskId', AttributeType: 'S' },
-    { AttributeName: 'parentTaskId', AttributeType: 'S' },
+    { AttributeName: 'parentOfTaskId', AttributeType: 'S' },
     { AttributeName: 'taskName', AttributeType: 'S' },
     { AttributeName: 'priorityFlag', AttributeType: 'B' },
     { AttributeName: 'toughnessFlag', AttributeType: 'B' },
