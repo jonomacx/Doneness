@@ -2,17 +2,22 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { formatDay, formatTimestamp } from './dates';
 
-// A task shown as a card. With `parent`, the bigger task it belongs to is shown
-// as a smaller card above it, joined by a line.
-const TaskCard = ({ task, parent }) => (
+// A smaller card for a task linked to the current one
+const LinkedCard = ({ label, task }) => (
+  <View style={[styles.card, styles.linkedCard]}>
+    <Text style={styles.label}>{label}</Text>
+    <Text style={styles.linkedName}>{task.taskName}</Text>
+    {!!task.dateRequired && <Text style={styles.meta}>Due {formatDay(task.dateRequired)}</Text>}
+  </View>
+);
+
+// A task shown as a card. The bigger task it is part of (`parent`) is shown above
+// it, and any tasks that are part of it (`subtasks`) below, each joined by a line.
+const TaskCard = ({ task, parent, subtasks = [] }) => (
   <View style={styles.stack}>
     {!!parent && (
       <>
-        <View style={[styles.card, styles.parentCard]}>
-          <Text style={styles.label}>PART OF</Text>
-          <Text style={styles.parentName}>{parent.taskName}</Text>
-          {!!parent.dateRequired && <Text style={styles.meta}>Due {formatDay(parent.dateRequired)}</Text>}
-        </View>
+        <LinkedCard label="PART OF" task={parent} />
         <View style={styles.connector} />
       </>
     )}
@@ -31,6 +36,13 @@ const TaskCard = ({ task, parent }) => (
         {!!task.dateCreated && <Text style={styles.meta}>Added {formatTimestamp(task.dateCreated)}</Text>}
       </View>
     </View>
+
+    {subtasks.map((subtask) => (
+      <React.Fragment key={subtask.taskId}>
+        <View style={styles.connector} />
+        <LinkedCard label="SUBTASK" task={subtask} />
+      </React.Fragment>
+    ))}
   </View>
 );
 
@@ -53,7 +65,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  parentCard: {
+  linkedCard: {
     backgroundColor: '#f7f7f7',
     paddingVertical: 14,
     marginHorizontal: 16,
@@ -75,7 +87,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#222',
   },
-  parentName: {
+  linkedName: {
     fontSize: 16,
     fontWeight: '500',
     color: '#444',

@@ -12,7 +12,7 @@ const task = {
     dateRequired: new Date('2023-06-22').toISOString(),
     taskId: uuidv4(),
     taskName: 'Tough and Priority Task 2',
-    parentTaskId: uuidv4(),
+    //parentOfTaskId: '<taskId of the bigger task this is part of>',
     priorityFlag: true,
     toughnessFlag: true,
 };

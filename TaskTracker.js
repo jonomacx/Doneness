@@ -22,7 +22,7 @@ const TaskTracker = () => {
   const [task, setTask] = useState(undefined); //undefined while loading, null if there are none
   const [clearDistractions, setClearDistractions] = useState(false);
   const [toughChoice, setToughChoice] = useState(null); //{ tough, easy } when the user gets to choose
-  const [openTasks, setOpenTasks] = useState([]); //used to look up the task's parent
+  const [openTasks, setOpenTasks] = useState([]); //used to look up the task's parent and children
 
   useEffect(() => {
     async function fetchTasks() {
@@ -105,7 +105,8 @@ const TaskTracker = () => {
     return <Text>No tasks to do. Nice work!</Text>;
   }
 
-  const parent = task.parentTaskId ? openTasks.find((t) => t.taskId === task.parentTaskId) : null;
-  return <TaskCard task={task} parent={parent} />;
+  const parent = task.parentOfTaskId ? openTasks.find((t) => t.taskId === task.parentOfTaskId) : null;
+  const subtasks = openTasks.filter((t) => t.parentOfTaskId === task.taskId);
+  return <TaskCard task={task} parent={parent} subtasks={subtasks} />;
 };
 export default TaskTracker;
