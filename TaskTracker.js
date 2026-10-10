@@ -5,16 +5,7 @@ import TaskCard from './TaskCard';
 //import ToggleSwitch from './ToggleSwitch';
 
 import { getOpenTasks } from './taskStore';
-import { today } from './dates';
-
-// Keep only the tasks that pass the test, but if none do, keep them all.
-// Applied in order, this picks the most urgent tasks that actually exist.
-const narrow = (list, test) => {
-  const matches = list.filter(test);
-  return matches.length ? matches : list;
-};
-
-const pickRandom = (list) => list[Math.floor(Math.random() * list.length)] || null;
+import { chooseTask, pickRandom } from './chooseTask';
 
 const TaskTracker = () => {
 
@@ -22,7 +13,7 @@ const TaskTracker = () => {
   const [task, setTask] = useState(undefined); //undefined while loading, null if there are none
   const [clearDistractions, setClearDistractions] = useState(false);
   const [toughChoice, setToughChoice] = useState(null); //{ tough, easy } when the user gets to choose
-  const [openTasks, setOpenTasks] = useState([]); //used to look up the task's parent and children
+  const [openTasks, setOpenTasks] = useState([]); //used to look up the task's parent and subtasks
 
   useEffect(() => {
     async function fetchTasks() {
@@ -30,19 +21,13 @@ const TaskTracker = () => {
         const items = await getOpenTasks('Jono');
         setOpenTasks(items);
 
-        //due today if there are any, then high priority if any
-        const requiredDate = today();
-        let picked = narrow(items, (task) => task.dateRequired === requiredDate);
-        picked = narrow(picked, (task) => task.priorityFlag);
-
-        //if there are both tough and easy tasks, let the user choose; otherwise pick one at random
-        const tough = picked.filter((task) => task.toughnessFlag);
-        const easy = picked.filter((task) => !task.toughnessFlag);
-        if (tough.length && easy.length) {
-          setToughChoice({ tough, easy });
+        //see chooseTask.js for the rules
+        const choice = chooseTask(items);
+        if (choice.tough) {
+          setToughChoice(choice);
           setTask(null);
         } else {
-          setTask(pickRandom(picked));
+          setTask(choice.task);
         }
       } catch (error) {
         console.error('Error retrieving tasks:', error);
