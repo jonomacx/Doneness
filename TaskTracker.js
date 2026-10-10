@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import ToggleButton from './ToggleButton';
+import TaskCard from './TaskCard';
 //import ToggleSwitch from './ToggleSwitch';
 
 import { getOpenTasks } from './taskStore';
@@ -21,11 +22,13 @@ const TaskTracker = () => {
   const [task, setTask] = useState(undefined); //undefined while loading, null if there are none
   const [clearDistractions, setClearDistractions] = useState(false);
   const [toughChoice, setToughChoice] = useState(null); //{ tough, easy } when the user gets to choose
+  const [openTasks, setOpenTasks] = useState([]); //used to look up the task's parent
 
   useEffect(() => {
     async function fetchTasks() {
       try {
         const items = await getOpenTasks('Jono');
+        setOpenTasks(items);
 
         //due today if there are any, then high priority if any
         const requiredDate = today();
@@ -102,17 +105,7 @@ const TaskTracker = () => {
     return <Text>No tasks to do. Nice work!</Text>;
   }
 
-  return (
-    <View>
-      <Text>
-        {task.taskName}{"\n"}
-        Created: {task.dateCreated}{"\n"}
-        Required: {task.dateRequired}{"\n"}
-        Priority: {task.priorityFlag ? 'High' : 'Normal'}{"\n"}
-        Toughness: {task.toughnessFlag ? 'High' : 'Normal'}{"\n"}
-        Parent Task: {task.parentTaskId}{"\n"}
-      </Text>
-    </View>
-  );
+  const parent = task.parentTaskId ? openTasks.find((t) => t.taskId === task.parentTaskId) : null;
+  return <TaskCard task={task} parent={parent} />;
 };
 export default TaskTracker;
