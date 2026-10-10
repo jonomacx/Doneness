@@ -2,23 +2,46 @@
 //
 // Running locally (phone, or the browser on localhost) it uses DynamoDB via db.js.
 // On the public demo website (e.g. GitHub Pages) there is no database it can safely
-// reach, so it shows the sample tasks instead, dated from the day the page is opened.
-// (Nothing in the app changes tasks yet. Once it does, the demo can save them in
-// the browser's localStorage.)
+// reach, so it uses the sample tasks instead and saves changes in the visitor's own
+// browser (localStorage). The samples start fresh each day so their dates stay current.
 
 import { Platform } from 'react-native';
 import { docClient, TABLE } from './db';
 import { sampleTasks } from './sampleTasks';
+import { today } from './dates';
 
 export const isDemo =
   Platform.OS === 'web' &&
   typeof window !== 'undefined' &&
   !['localhost', '127.0.0.1'].includes(window.location.hostname);
 
+const DEMO_KEY = 'doneness.demo';
+let demo = null; //{ day, tasks }, kept in memory too in case the browser blocks storage
+
+function loadDemoTasks(ownerId) {
+  if (!demo || demo.day !== today()) {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(DEMO_KEY));
+      if (saved && saved.day === today()) demo = saved;
+    } catch (e) {}
+  }
+  if (!demo || demo.day !== today()) {
+    demo = { day: today(), tasks: sampleTasks(ownerId) };
+    saveDemoTasks();
+  }
+  return demo.tasks;
+}
+
+function saveDemoTasks() {
+  try {
+    window.localStorage.setItem(DEMO_KEY, JSON.stringify(demo));
+  } catch (e) {}
+}
+
 // All of this owner's tasks that have not been completed.
 export async function getOpenTasks(ownerId) {
   if (isDemo) {
-    return sampleTasks(ownerId).filter((task) => task.ownerId === ownerId && !task.dateCompleted);
+    return loadDemoTasks(ownerId).filter((task) => task.ownerId === ownerId && !task.dateCompleted);
   }
 
   const params = {
@@ -38,4 +61,24 @@ export async function getOpenTasks(ownerId) {
     params.ExclusiveStartKey = result.LastEvaluatedKey;
   } while (result.LastEvaluatedKey);
   return items;
+}
+
+// Mark a task as completed today.
+export async function completeTask(task) {
+  const dateCompleted = today();
+  if (isDemo) {
+    const tasks = loadDemoTasks(task.ownerId);
+    demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, dateCompleted } : t));
+    saveDemoTasks();
+    return;
+  }
+
+  await docClient
+    .update({
+      TableName: TABLE,
+      Key: { ownerId: task.ownerId, dateCreated: task.dateCreated },
+      UpdateExpression: 'SET dateCompleted = :dateCompleted',
+      ExpressionAttributeValues: { ':dateCompleted': dateCompleted },
+    })
+    .promise();
 }
