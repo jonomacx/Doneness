@@ -11,6 +11,7 @@ const sampleTasks = (ownerId) => {
   const winterId = uuidv4();
   const toughId = uuidv4();
   const samples = [
+    { taskName: 'Overdue task from yesterday', dateRequired: dates.daysFromNow(-1), priorityFlag: false, toughnessFlag: false },
     // a chain: winter jobs -> tough task -> its first step
     { taskId: winterId, taskName: 'Get the house ready for winter', dateRequired: dates.daysFromNow(14), priorityFlag: false, toughnessFlag: false },
     { taskId: toughId, taskName: 'Tough and priority task due today', dateRequired: today, priorityFlag: true, toughnessFlag: true, parentOfTaskId: winterId },
