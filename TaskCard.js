@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { formatDay, formatTimestamp } from './dates';
 
 // A smaller card for a task linked to the current one
@@ -13,7 +13,8 @@ const LinkedCard = ({ label, task }) => (
 
 // A task shown as a card. The bigger task it is part of (`parent`) is shown above
 // it, and any tasks that are part of it (`subtasks`) below, each joined by a line.
-const TaskCard = ({ task, parent, subtasks = [] }) => (
+// Tapping the task's card calls `onPress`.
+const TaskCard = ({ task, parent, subtasks = [], onPress }) => (
   <View style={styles.stack}>
     {!!parent && (
       <>
@@ -22,7 +23,12 @@ const TaskCard = ({ task, parent, subtasks = [] }) => (
       </>
     )}
 
-    <View style={styles.card}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityHint="Asks if you have completed the task"
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
       <Text style={styles.label}>YOUR TASK</Text>
       <Text style={styles.name}>{task.taskName}</Text>
 
@@ -35,7 +41,9 @@ const TaskCard = ({ task, parent, subtasks = [] }) => (
         {!!task.dateRequired && <Text style={styles.meta}>Due {formatDay(task.dateRequired)}</Text>}
         {!!task.dateCreated && <Text style={styles.meta}>Added {formatTimestamp(task.dateCreated)}</Text>}
       </View>
-    </View>
+
+      <Text style={styles.hint}>Tap when you've finished</Text>
+    </Pressable>
 
     {subtasks.map((subtask) => (
       <React.Fragment key={subtask.taskId}>
@@ -64,6 +72,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+  },
+  pressed: {
+    backgroundColor: '#f2f2f2',
+  },
+  hint: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 16,
   },
   linkedCard: {
     backgroundColor: '#f7f7f7',

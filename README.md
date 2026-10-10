@@ -20,7 +20,7 @@ Note that a browser or phone app should not hold AWS keys at all. A real deploym
 ## Demo website (GitHub Pages)
 
 Every push to `main` builds the web version and publishes it to GitHub Pages (`.github/workflows/pages.yml`).
-The website has no database, so it shows the sample tasks from `sampleTasks.js` instead (see `taskStore.js`).
+The website has no database, so it uses the sample tasks from `sampleTasks.js` instead and saves completed tasks in the browser (see `taskStore.js`). The samples reset each day.
 On `localhost` and on a phone the app still uses DynamoDB.
 
 One-time setup: in the repo's Settings → Pages, set Source to "GitHub Actions".
