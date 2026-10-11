@@ -1,9 +1,9 @@
 // The rules for which task to offer next.
 //
 // 1. A task that still has open subtasks can't be done yet, so it is never offered.
-//    Its subtasks stand in for it: a subtask counts as due today, or high priority,
-//    if it or anything it is part of is.
-// 2. Due today, if any are.
+//    Its subtasks stand in for it: a subtask counts as overdue, due today, or high
+//    priority, if it or anything it is part of is.
+// 2. Overdue (due before today), if any are; otherwise due today, if any are.
 // 3. Then high priority, if any are.
 // 4. If what's left has both tough and easy tasks, the user chooses; otherwise one
 //    is picked at random.
@@ -40,9 +40,14 @@ const readyTasks = (openTasks) => {
 // Returns { task } (null if there is nothing to do), or { tough, easy } when the
 // user should choose between a tough and an easy task.
 const chooseTask = (openTasks) => {
-  const requiredDate = today();
+  const todayDay = today().slice(0, 10);
+  const dueDay = (t) => (t.dateRequired ? t.dateRequired.slice(0, 10) : null); //"YYYY-MM-DD" sorts as text
+  const overdue = (t) => dueDay(t) !== null && dueDay(t) < todayDay;
+  const dueToday = (t) => dueDay(t) === todayDay;
+
   let picked = readyTasks(openTasks);
-  picked = narrow(picked, ({ chain }) => chain.some((t) => t.dateRequired === requiredDate));
+  const anyOverdue = picked.some(({ chain }) => chain.some(overdue));
+  picked = narrow(picked, ({ chain }) => chain.some(anyOverdue ? overdue : dueToday));
   picked = narrow(picked, ({ chain }) => chain.some((t) => t.priorityFlag));
 
   const tasks = picked.map(({ task }) => task);

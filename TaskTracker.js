@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, StyleSheet } from 'react-native';
 import ToggleButton from './ToggleButton';
 import TaskCard from './TaskCard';
+import AddTask from './AddTask';
 //import ToggleSwitch from './ToggleSwitch';
 
 import { getOpenTasks, completeTask } from './taskStore';
 import { chooseTask, pickRandom } from './chooseTask';
+
+const DONE_MESSAGE = 'Nice work! That task is done.';
 
 const TaskTracker = () => {
 
@@ -16,7 +19,8 @@ const TaskTracker = () => {
   const [openTasks, setOpenTasks] = useState([]); //used to look up the task's parent and subtasks
   const [askCompleted, setAskCompleted] = useState(false); //showing "have you completed the task?"
   const [saveFailed, setSaveFailed] = useState(false);
-  const [justCompleted, setJustCompleted] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
+  const [message, setMessage] = useState(null); //shown on the start screen, e.g. after completing a task
 
   async function fetchTasks() {
     try {
@@ -43,7 +47,21 @@ const TaskTracker = () => {
   const handleTakeTaskToggle = (value) => {
     setTakeTask(value);
     setClearDistractions(false);
-    setJustCompleted(false);
+    setMessage(null);
+  };
+
+  const handleAddTaskToggle = () => {
+    setAddingTask(true);
+    setMessage(null);
+  };
+
+  //a new task can change which task should come next, so choose again
+  const handleTaskAdded = () => {
+    setAddingTask(false);
+    setMessage('Task added.');
+    setToughChoice(null);
+    setTask(undefined);
+    fetchTasks();
   };
 
   const handleClearDistractionsToggle = (value) => {
@@ -71,22 +89,28 @@ const TaskTracker = () => {
     }
     setAskCompleted(false);
     setSaveFailed(false);
-    setJustCompleted(true);
+    setMessage(DONE_MESSAGE);
     setTakeTask(false);
     setToughChoice(null);
     setTask(undefined);
     fetchTasks();
   };
 
+  if (addingTask) {
+    return <AddTask onDone={handleTaskAdded} onCancel={() => setAddingTask(false)} />;
+  }
+
   if (!takeTask) {
     return (
       <View style={styles.centred}>
-        {justCompleted && <Text style={styles.message}>Nice work! That task is done.{"\n"}</Text>}
+        {!!message && <Text style={styles.message}>{message}{"\n"}</Text>}
         <ToggleButton
-          label={justCompleted ? 'Take another task' : 'Take a task'}
+          label={message === DONE_MESSAGE ? 'Take another task' : 'Take a task'}
           value={true}
           onToggle={handleTakeTaskToggle}
         />
+        <View style={styles.gap} />
+        <ToggleButton label="Add a task" value={true} onToggle={handleAddTaskToggle} />
       </View>
     );
   }
@@ -154,6 +178,9 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  gap: {
+    height: 12,
   },
   backdrop: {
     flex: 1,
