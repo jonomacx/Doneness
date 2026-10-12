@@ -39,4 +39,32 @@ const afterOptions = (openTasks, beforeId) =>
     return { task, reason: null };
   });
 
-module.exports = { taskAfter, taskBefore, beforeOptions, afterOptions };
+// Open tasks in the order to show them: first each chain of linked tasks in the order
+// they have to be done (chains sorted A-Z by their first task), then every task that
+// isn't linked to another, A-Z. Returns { chains: [[task, ...], ...], others: [task, ...] }.
+const orderTasks = (openTasks) => {
+  const byName = (a, b) => a.taskName.localeCompare(b.taskName, undefined, { sensitivity: 'base' });
+  const placed = new Set();
+  const chains = [];
+
+  //a chain starts at a task with nothing before it but something after it
+  openTasks
+    .filter((t) => !taskBefore(t, openTasks) && taskAfter(t, openTasks))
+    .sort(byName)
+    .forEach((start) => {
+      const chain = [];
+      let t = start;
+      while (t && !placed.has(t)) {
+        chain.push(t);
+        placed.add(t);
+        t = taskAfter(t, openTasks);
+      }
+      chains.push(chain);
+    });
+
+  //everything else, including any tasks caught in a loop of links
+  const others = openTasks.filter((t) => !placed.has(t)).sort(byName);
+  return { chains, others };
+};
+
+module.exports = { taskAfter, taskBefore, beforeOptions, afterOptions, orderTasks };

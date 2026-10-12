@@ -2,45 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Modal, StyleSheet } from 'react-native';
 import ToggleButton from './ToggleButton';
 import { getOpenTasks, renameTask, deleteTask } from './taskStore';
-import { today, tomorrow, formatDay } from './dates';
-import { taskAfter, taskBefore } from './taskLinks';
+import { formatDay } from './dates';
+import { taskAfter, taskBefore, orderTasks } from './taskLinks';
 
 const OWNER = 'Jono';
 
-// Open tasks grouped by due date: overdue, today, tomorrow, each later date, then no due date.
-// Within a group, the oldest added comes first.
-const groupByDate = (tasks) => {
-  const todayDay = today().slice(0, 10);
-  const tomorrowDay = tomorrow().slice(0, 10);
-  const heading = (day) => {
-    if (!day) return 'No due date';
-    if (day < todayDay) return 'Overdue';
-    if (day === todayDay) return 'Today';
-    if (day === tomorrowDay) return 'Tomorrow';
-    return formatDay(day);
-  };
-  //overdue sorts as its own group just above today; no due date goes last
-  const sortKey = (day) => (!day ? '9999' : day < todayDay ? '0000' : day);
-
-  const sorted = tasks
-    .map((task) => ({ task, day: task.dateRequired ? task.dateRequired.slice(0, 10) : null }))
-    .sort((a, b) => {
-      const byGroup = sortKey(a.day).localeCompare(sortKey(b.day));
-      if (byGroup) return byGroup;
-      if (a.day !== b.day) return (a.day || '').localeCompare(b.day || ''); //oldest overdue first
-      return (a.task.dateCreated || '').localeCompare(b.task.dateCreated || '');
-    });
-
-  const groups = [];
-  sorted.forEach(({ task, day }) => {
-    const title = heading(day);
-    if (!groups.length || groups[groups.length - 1].title !== title) groups.push({ title, tasks: [] });
-    groups[groups.length - 1].tasks.push(task);
-  });
-  return groups;
-};
-
-// Every open task as a card, with Edit (rename) and X (delete).
+// Every open task as a card, with Edit (rename) and X (delete): first the chains of
+// linked tasks in the order they have to be done, then all other tasks A-Z.
 // Calls onClose(changed) when the user is done; `changed` is true if anything was edited.
 const AllTasks = ({ onClose }) => {
   const [tasks, setTasks] = useState(null); //null while loading
@@ -99,86 +67,105 @@ const AllTasks = ({ onClose }) => {
     load();
   };
 
+  const renderCard = (task) => {
+    const before = taskBefore(task, tasks); //has to be completed first
+    const after = taskAfter(task, tasks); //can only be done once this one is completed
+    const isEditing = editing && editing.task.taskId === task.taskId;
+    return (
+      <View key={task.taskId} style={styles.card}>
+        {isEditing ? (
+          <>
+            <TextInput
+              style={styles.input}
+              value={editing.name}
+              onChangeText={(name) => setEditing({ ...editing, name })}
+              onSubmitEditing={saveName}
+              autoFocus
+              accessibilityLabel="Task name"
+            />
+            {saveFailed && <Text style={styles.error}>Couldn't save that. Please try again.</Text>}
+            <View style={styles.editButtons}>
+              <View style={styles.half}>
+                <ToggleButton label="Save" value={true} onToggle={saveName} />
+              </View>
+              <View style={styles.half}>
+                <ToggleButton
+                  label="Cancel"
+                  value={true}
+                  onToggle={() => {
+                    setEditing(null);
+                    setSaveFailed(false);
+                  }}
+                />
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.titleRow}>
+              <Text style={styles.name}>{task.taskName}</Text>
+              <Pressable
+                onPress={() => setDeleting(task)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${task.taskName}`}
+                hitSlop={8}
+                style={({ pressed }) => [styles.delete, pressed && styles.deletePressed]}
+              >
+                <Text style={styles.deleteText}>✕</Text>
+              </Pressable>
+            </View>
+            <View style={styles.tags}>
+              {!!task.priorityFlag && <Text style={[styles.tag, styles.priorityTag]}>High priority</Text>}
+              {!!task.toughnessFlag && <Text style={[styles.tag, styles.toughTag]}>Tough</Text>}
+            </View>
+            {!!task.dateRequired && <Text style={styles.meta}>Due {formatDay(task.dateRequired)}</Text>}
+            {!!before && <Text style={styles.meta}>Comes after: {before.taskName}</Text>}
+            {!!after && <Text style={styles.meta}>Unlocks: {after.taskName}</Text>}
+            <Pressable
+              onPress={() => {
+                setEditing({ task, name: task.taskName });
+                setSaveFailed(false);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${task.taskName}`}
+              style={styles.editLink}
+            >
+              <Text style={styles.link}>Edit</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
+    );
+  };
+
   let list;
   if (loadFailed) list = <Text style={styles.empty}>Couldn't load your tasks.</Text>;
   else if (!tasks) list = <Text style={styles.empty}>Loading your tasks...</Text>;
   else if (!tasks.length) list = <Text style={styles.empty}>No tasks to do. Nice work!</Text>;
-  else
-    list = groupByDate(tasks).map((group) => (
-      <View key={group.title}>
-        <Text style={[styles.groupTitle, group.title === 'Overdue' && styles.overdue]}>{group.title.toUpperCase()}</Text>
-        {group.tasks.map((task) => {
-          const before = taskBefore(task, tasks); //has to be completed first
-          const after = taskAfter(task, tasks); //can only be done once this one is completed
-          const isEditing = editing && editing.task.taskId === task.taskId;
-          return (
-            <View key={task.taskId} style={styles.card}>
-              {isEditing ? (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    value={editing.name}
-                    onChangeText={(name) => setEditing({ ...editing, name })}
-                    onSubmitEditing={saveName}
-                    autoFocus
-                    accessibilityLabel="Task name"
-                  />
-                  {saveFailed && <Text style={styles.error}>Couldn't save that. Please try again.</Text>}
-                  <View style={styles.editButtons}>
-                    <View style={styles.half}>
-                      <ToggleButton label="Save" value={true} onToggle={saveName} />
-                    </View>
-                    <View style={styles.half}>
-                      <ToggleButton
-                        label="Cancel"
-                        value={true}
-                        onToggle={() => {
-                          setEditing(null);
-                          setSaveFailed(false);
-                        }}
-                      />
-                    </View>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.name}>{task.taskName}</Text>
-                    <Pressable
-                      onPress={() => setDeleting(task)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Delete ${task.taskName}`}
-                      hitSlop={8}
-                      style={({ pressed }) => [styles.delete, pressed && styles.deletePressed]}
-                    >
-                      <Text style={styles.deleteText}>✕</Text>
-                    </Pressable>
-                  </View>
-                  <View style={styles.tags}>
-                    {!!task.priorityFlag && <Text style={[styles.tag, styles.priorityTag]}>High priority</Text>}
-                    {!!task.toughnessFlag && <Text style={[styles.tag, styles.toughTag]}>Tough</Text>}
-                  </View>
-                  {!!task.dateRequired && <Text style={styles.meta}>Due {formatDay(task.dateRequired)}</Text>}
-                  {!!before && <Text style={styles.meta}>Comes after: {before.taskName}</Text>}
-                  {!!after && <Text style={styles.meta}>Unlocks: {after.taskName}</Text>}
-                  <Pressable
-                    onPress={() => {
-                      setEditing({ task, name: task.taskName });
-                      setSaveFailed(false);
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Edit ${task.taskName}`}
-                    style={styles.editLink}
-                  >
-                    <Text style={styles.link}>Edit</Text>
-                  </Pressable>
-                </>
-              )}
-            </View>
-          );
-        })}
-      </View>
-    ));
+  else {
+    const { chains, others } = orderTasks(tasks);
+    list = (
+      <>
+        {!!chains.length && <Text style={styles.groupTitle}>LINKED TASKS</Text>}
+        {chains.map((chain) => (
+          <View key={chain[0].taskId} style={styles.chain}>
+            {chain.map((task, i) => (
+              <React.Fragment key={task.taskId}>
+                {i > 0 && <View style={styles.connector} />}
+                {renderCard(task)}
+              </React.Fragment>
+            ))}
+          </View>
+        ))}
+        {!!others.length && <Text style={styles.groupTitle}>{chains.length ? 'OTHER TASKS' : 'ALL TASKS'}</Text>}
+        {others.map((task) => (
+          <View key={task.taskId} style={styles.single}>
+            {renderCard(task)}
+          </View>
+        ))}
+      </>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -252,16 +239,25 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
-  overdue: {
-    color: '#b42318',
-  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e2e2',
     padding: 16,
+  },
+  single: {
     marginBottom: 10,
+  },
+  //a chain of linked tasks, joined by a line between each card
+  chain: {
+    marginBottom: 16,
+  },
+  connector: {
+    width: 2,
+    height: 16,
+    backgroundColor: '#c8c8c8',
+    alignSelf: 'center',
   },
   titleRow: {
     flexDirection: 'row',
@@ -375,5 +371,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { groupByDate };
 export default AllTasks;
