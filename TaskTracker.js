@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, StyleSheet } from 'react-native';
+import { View, Text, Modal, Pressable, Platform, StyleSheet } from 'react-native';
 import ToggleButton from './ToggleButton';
 import TaskCard from './TaskCard';
 import AddTask from './AddTask';
+import AllTasks from './AllTasks';
 //import ToggleSwitch from './ToggleSwitch';
 
 import { getOpenTasks, completeTask } from './taskStore';
@@ -21,6 +22,7 @@ const TaskTracker = () => {
   const [saveFailed, setSaveFailed] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
   const [message, setMessage] = useState(null); //shown on the start screen, e.g. after completing a task
+  const [viewingAll, setViewingAll] = useState(false);
 
   async function fetchTasks() {
     try {
@@ -96,82 +98,122 @@ const TaskTracker = () => {
     fetchTasks();
   };
 
-  if (addingTask) {
-    return <AddTask onDone={handleTaskAdded} onCancel={() => setAddingTask(false)} />;
+  //back from View All: if a task was edited or deleted, start again so nothing stale is shown
+  const handleAllTasksClosed = (changed) => {
+    setViewingAll(false);
+    if (!changed) return;
+    setTakeTask(false);
+    setClearDistractions(false);
+    setToughChoice(null);
+    setTask(undefined);
+    setMessage(null);
+    fetchTasks();
+  };
+
+  if (viewingAll) {
+    return <AllTasks onClose={handleAllTasksClosed} />;
   }
 
-  if (!takeTask) {
-    return (
-      <View style={styles.centred}>
-        {!!message && <Text style={styles.message}>{message}{"\n"}</Text>}
-        <ToggleButton
-          label={message === DONE_MESSAGE ? 'Take another task' : 'Take a task'}
+  const renderScreen = () => {
+    if (addingTask) {
+      return <AddTask onDone={handleTaskAdded} onCancel={() => setAddingTask(false)} />;
+    }
+
+    if (!takeTask) {
+      return (
+        <View style={styles.centred}>
+          {!!message && <Text style={styles.message}>{message}{"\n"}</Text>}
+          <ToggleButton
+            label={message === DONE_MESSAGE ? 'Take another task' : 'Take a task'}
+            value={true}
+            onToggle={handleTakeTaskToggle}
+          />
+          <View style={styles.gap} />
+          <ToggleButton label="Add a task" value={true} onToggle={handleAddTaskToggle} />
+        </View>
+      );
+    }
+
+    if (!clearDistractions) {
+      return (
+        <ToggleButton //ToggleButton - will be updated to ToggleSwitch later
+          label="Have you cleared all distractions and ready to start?"
           value={true}
-          onToggle={handleTakeTaskToggle}
+          onToggle={handleClearDistractionsToggle}
         />
-        <View style={styles.gap} />
-        <ToggleButton label="Add a task" value={true} onToggle={handleAddTaskToggle} />
-      </View>
-    );
-  }
+      );
+    }
 
-  if (!clearDistractions) {
+    if (task === undefined) {
+      return <Text>Finding your task...</Text>;
+    }
+
+    if (toughChoice) {
+      return (
+        <View>
+          <Text>Do you want to try and do a tough task now?{"\n"}</Text>
+          <ToggleButton label="Yes" value={true} onToggle={handleToughToggle} />
+          <Text></Text>
+          <ToggleButton label="No" value={false} onToggle={handleToughToggle} />
+        </View>
+      );
+    }
+
+    if (!task) {
+      return <Text>No tasks to do. Nice work!</Text>;
+    }
+
+    const parent = task.parentOfTaskId ? openTasks.find((t) => t.taskId === task.parentOfTaskId) : null;
+    const subtasks = openTasks.filter((t) => t.parentOfTaskId === task.taskId);
     return (
-      <ToggleButton //ToggleButton - will be updated to ToggleSwitch later
-        label="Have you cleared all distractions and ready to start?"
-        value={true}
-        onToggle={handleClearDistractionsToggle}
-      />
-    );
-  }
+      <>
+        <TaskCard task={task} parent={parent} subtasks={subtasks} onPress={() => setAskCompleted(true)} />
 
-  if (task === undefined) {
-    return <Text>Finding your task...</Text>;
-  }
-
-  if (toughChoice) {
-    return (
-      <View>
-        <Text>Do you want to try and do a tough task now?{"\n"}</Text>
-        <ToggleButton label="Yes" value={true} onToggle={handleToughToggle} />
-        <Text></Text>
-        <ToggleButton label="No" value={false} onToggle={handleToughToggle} />
-      </View>
-    );
-  }
-
-  if (!task) {
-    return <Text>No tasks to do. Nice work!</Text>;
-  }
-
-  const parent = task.parentOfTaskId ? openTasks.find((t) => t.taskId === task.parentOfTaskId) : null;
-  const subtasks = openTasks.filter((t) => t.parentOfTaskId === task.taskId);
-  return (
-    <>
-      <TaskCard task={task} parent={parent} subtasks={subtasks} onPress={() => setAskCompleted(true)} />
-
-      <Modal visible={askCompleted} transparent animationType="fade" onRequestClose={() => handleCompletedToggle(false)}>
-        <View style={styles.backdrop}>
-          <View style={styles.prompt}>
-            <Text style={styles.question}>Have you completed the task?</Text>
-            <Text style={styles.taskName}>{task.taskName}</Text>
-            {saveFailed && <Text style={styles.error}>Couldn't save that. Please try again.</Text>}
-            <View style={styles.buttons}>
-              <View style={styles.button}>
-                <ToggleButton label="Yes" value={true} onToggle={handleCompletedToggle} />
-              </View>
-              <View style={styles.button}>
-                <ToggleButton label="No" value={false} onToggle={handleCompletedToggle} />
+        <Modal visible={askCompleted} transparent animationType="fade" onRequestClose={() => handleCompletedToggle(false)}>
+          <View style={styles.backdrop}>
+            <View style={styles.prompt}>
+              <Text style={styles.question}>Have you completed the task?</Text>
+              <Text style={styles.taskName}>{task.taskName}</Text>
+              {saveFailed && <Text style={styles.error}>Couldn't save that. Please try again.</Text>}
+              <View style={styles.buttons}>
+                <View style={styles.button}>
+                  <ToggleButton label="Yes" value={true} onToggle={handleCompletedToggle} />
+                </View>
+                <View style={styles.button}>
+                  <ToggleButton label="No" value={false} onToggle={handleCompletedToggle} />
+                </View>
               </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      </>
+    );
+  };
+
+  return (
+    <>
+      {renderScreen()}
+      {!addingTask && (
+        <Pressable onPress={() => setViewingAll(true)} accessibilityRole="button" hitSlop={8} style={styles.viewAll}>
+          <Text style={styles.viewAllText}>View All</Text>
+        </Pressable>
+      )}
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  viewAll: {
+    position: 'absolute',
+    top: Platform.OS === 'web' ? 16 : 52, //below the phone's status bar
+    right: 16,
+  },
+  viewAllText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2196f3',
+    padding: 4,
+  },
   centred: {
     alignItems: 'center',
   },
