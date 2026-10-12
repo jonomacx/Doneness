@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView, Modal, StyleSheet } from 
 import ToggleButton from './ToggleButton';
 import { getOpenTasks, renameTask, deleteTask } from './taskStore';
 import { today, tomorrow, formatDay } from './dates';
-import { taskAfter } from './taskLinks';
+import { taskAfter, taskBefore } from './taskLinks';
 
 const OWNER = 'Jono';
 
@@ -108,7 +108,8 @@ const AllTasks = ({ onClose }) => {
       <View key={group.title}>
         <Text style={[styles.groupTitle, group.title === 'Overdue' && styles.overdue]}>{group.title.toUpperCase()}</Text>
         {group.tasks.map((task) => {
-          const after = taskAfter(task, tasks);
+          const before = taskBefore(task, tasks); //has to be completed first
+          const after = taskAfter(task, tasks); //can only be done once this one is completed
           const isEditing = editing && editing.task.taskId === task.taskId;
           return (
             <View key={task.taskId} style={styles.card}>
@@ -158,7 +159,8 @@ const AllTasks = ({ onClose }) => {
                     {!!task.toughnessFlag && <Text style={[styles.tag, styles.toughTag]}>Tough</Text>}
                   </View>
                   {!!task.dateRequired && <Text style={styles.meta}>Due {formatDay(task.dateRequired)}</Text>}
-                  {!!after && <Text style={styles.meta}>Then: {after.taskName}</Text>}
+                  {!!before && <Text style={styles.meta}>Comes after: {before.taskName}</Text>}
+                  {!!after && <Text style={styles.meta}>Unlocks: {after.taskName}</Text>}
                   <Pressable
                     onPress={() => {
                       setEditing({ task, name: task.taskName });
