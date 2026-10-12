@@ -18,7 +18,7 @@ const TaskCard = ({ task, parent, subtasks = [], onPress }) => (
   <View style={styles.stack}>
     {subtasks.map((subtask) => (
       <React.Fragment key={subtask.taskId}>
-        <LinkedCard label="DONE FIRST" task={subtask} />
+        <LinkedCard label="COMES AFTER" task={subtask} />
         <View style={styles.connector} />
       </React.Fragment>
     ))}
@@ -48,7 +48,7 @@ const TaskCard = ({ task, parent, subtasks = [], onPress }) => (
     {!!parent && (
       <>
         <View style={styles.connector} />
-        <LinkedCard label="THEN" task={parent} />
+        <LinkedCard label="UNLOCKS" task={parent} />
       </>
     )}
   </View>
