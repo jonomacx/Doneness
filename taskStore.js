@@ -4,7 +4,7 @@
 // On the public demo website (e.g. GitHub Pages) there is no database it can safely
 // reach, so it uses the sample tasks instead and saves changes in the visitor's own
 // browser (localStorage). The samples start fresh each day so their dates stay current;
-// tasks the visitor added themselves are kept.
+// tasks the visitor added themselves, and completed tasks, are kept.
 
 import { Platform } from 'react-native';
 import { docClient, TABLE } from './db';
@@ -27,7 +27,7 @@ function loadDemoTasks(ownerId) {
     } catch (e) {}
   }
   if (!demo || demo.day !== today()) {
-    //new day: fresh samples, plus the tasks the visitor added
+    //new day: fresh samples, plus the tasks the visitor added and everything completed
     let previous = demo;
     if (!previous) {
       try {
@@ -35,7 +35,7 @@ function loadDemoTasks(ownerId) {
       } catch (e) {}
     }
     const addedIds = (previous && previous.addedIds) || [];
-    const added = previous ? previous.tasks.filter((t) => addedIds.includes(t.taskId)) : [];
+    const added = previous ? previous.tasks.filter((t) => addedIds.includes(t.taskId) || t.dateCompleted) : [];
     demo = { day: today(), tasks: sampleTasks(ownerId).concat(added), addedIds };
     saveDemoTasks();
   }
@@ -73,9 +73,34 @@ export async function getOpenTasks(ownerId) {
   return items;
 }
 
-// Mark a task as completed today.
+// All of this owner's completed tasks, in the order they were completed.
+export async function getCompletedTasks(ownerId) {
+  let items;
+  if (isDemo) {
+    items = loadDemoTasks(ownerId).filter((task) => task.ownerId === ownerId && task.dateCompleted);
+  } else {
+    const params = {
+      TableName: TABLE,
+      FilterExpression: 'ownerId = :ownerId AND attribute_exists(dateCompleted)',
+      ExpressionAttributeValues: { ':ownerId': ownerId },
+    };
+    items = [];
+    let result;
+    do {
+      result = await docClient.scan(params).promise();
+      items = items.concat(result.Items);
+      params.ExclusiveStartKey = result.LastEvaluatedKey;
+    } while (result.LastEvaluatedKey);
+  }
+  //dateCompleted is an ISO timestamp (older tasks only have the day), so it sorts as text
+  return items.sort(
+    (a, b) => a.dateCompleted.localeCompare(b.dateCompleted) || a.dateCreated.localeCompare(b.dateCreated)
+  );
+}
+
+// Mark a task as completed now.
 export async function completeTask(task) {
-  const dateCompleted = today();
+  const dateCompleted = new Date().toISOString();
   if (isDemo) {
     const tasks = loadDemoTasks(task.ownerId);
     demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, dateCompleted } : t));
