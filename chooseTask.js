@@ -1,8 +1,9 @@
 // The rules for which task to offer next.
 //
-// 1. A task that still has open subtasks can't be done yet, so it is never offered.
-//    Its subtasks stand in for it: a subtask counts as overdue, due today, or high
-//    priority, if it or anything it is part of is.
+// 1. A task that is waiting on an open task (one whose parentOfTaskId points to it)
+//    can't be done yet, so it is never offered. The task it waits on stands in for it:
+//    that task counts as overdue, due today, or high priority, if it or anything
+//    waiting on it is.
 // 2. Overdue (due before today), if any are; otherwise due today, if any are.
 // 3. Then high priority, if any are.
 // 4. If what's left has both tough and easy tasks, the user chooses; otherwise one
@@ -18,8 +19,8 @@ const narrow = (list, test) => {
 
 const pickRandom = (list) => list[Math.floor(Math.random() * list.length)] || null;
 
-// Each task with no open subtasks, along with the open tasks it is part of
-// (its parent, that task's parent, and so on).
+// Each task that isn't waiting on another open task, along with the open tasks
+// waiting on it (the task after it, the task after that, and so on).
 const readyTasks = (openTasks) => {
   const byId = new Map(openTasks.map((t) => [t.taskId, t]));
   const hasOpenSubtask = new Set(openTasks.map((t) => t.parentOfTaskId).filter(Boolean));

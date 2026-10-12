@@ -116,3 +116,22 @@ export async function addTask(ownerId, fields) {
   await docClient.put({ TableName: TABLE, Item: task }).promise();
   return task;
 }
+
+// Set the task that comes after `task` (its parentOfTaskId).
+export async function setTaskAfter(task, parentOfTaskId) {
+  if (isDemo) {
+    const tasks = loadDemoTasks(task.ownerId);
+    demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, parentOfTaskId } : t));
+    saveDemoTasks();
+    return;
+  }
+
+  await docClient
+    .update({
+      TableName: TABLE,
+      Key: { ownerId: task.ownerId, dateCreated: task.dateCreated },
+      UpdateExpression: 'SET parentOfTaskId = :parentOfTaskId',
+      ExpressionAttributeValues: { ':parentOfTaskId': parentOfTaskId },
+    })
+    .promise();
+}
