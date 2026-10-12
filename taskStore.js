@@ -117,11 +117,34 @@ export async function addTask(ownerId, fields) {
   return task;
 }
 
-// Set the task that comes after `task` (its parentOfTaskId).
+// Set the task that comes after `task` (its parentOfTaskId), or remove it with null.
 export async function setTaskAfter(task, parentOfTaskId) {
   if (isDemo) {
     const tasks = loadDemoTasks(task.ownerId);
-    demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, parentOfTaskId } : t));
+    demo.tasks = tasks.map((t) => {
+      if (t.taskId !== task.taskId) return t;
+      const { parentOfTaskId: _old, ...rest } = t;
+      return parentOfTaskId ? { ...rest, parentOfTaskId } : rest;
+    });
+    saveDemoTasks();
+    return;
+  }
+
+  const key = { TableName: TABLE, Key: { ownerId: task.ownerId, dateCreated: task.dateCreated } };
+  await docClient
+    .update(
+      parentOfTaskId
+        ? { ...key, UpdateExpression: 'SET parentOfTaskId = :p', ExpressionAttributeValues: { ':p': parentOfTaskId } }
+        : { ...key, UpdateExpression: 'REMOVE parentOfTaskId' }
+    )
+    .promise();
+}
+
+// Change a task's name.
+export async function renameTask(task, taskName) {
+  if (isDemo) {
+    const tasks = loadDemoTasks(task.ownerId);
+    demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, taskName } : t));
     saveDemoTasks();
     return;
   }
@@ -130,8 +153,25 @@ export async function setTaskAfter(task, parentOfTaskId) {
     .update({
       TableName: TABLE,
       Key: { ownerId: task.ownerId, dateCreated: task.dateCreated },
-      UpdateExpression: 'SET parentOfTaskId = :parentOfTaskId',
-      ExpressionAttributeValues: { ':parentOfTaskId': parentOfTaskId },
+      UpdateExpression: 'SET taskName = :taskName',
+      ExpressionAttributeValues: { ':taskName': taskName },
     })
     .promise();
+}
+
+// Delete a task. If it was in the middle of a chain (A -> task -> C), A is linked to C
+// so the order is kept.
+export async function deleteTask(task, openTasks) {
+  const before = openTasks.find((t) => t.parentOfTaskId === task.taskId);
+  if (before) await setTaskAfter(before, task.parentOfTaskId || null);
+
+  if (isDemo) {
+    const tasks = loadDemoTasks(task.ownerId);
+    demo.tasks = tasks.filter((t) => t.taskId !== task.taskId);
+    demo.addedIds = (demo.addedIds || []).filter((id) => id !== task.taskId);
+    saveDemoTasks();
+    return;
+  }
+
+  await docClient.delete({ TableName: TABLE, Key: { ownerId: task.ownerId, dateCreated: task.dateCreated } }).promise();
 }
