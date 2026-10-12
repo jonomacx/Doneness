@@ -4,6 +4,7 @@ import ToggleButton from './ToggleButton';
 import TaskCard from './TaskCard';
 import AddTask from './AddTask';
 import AllTasks from './AllTasks';
+import DoneWall from './DoneWall';
 //import ToggleSwitch from './ToggleSwitch';
 
 import { getOpenTasks, completeTask } from './taskStore';
@@ -23,6 +24,7 @@ const TaskTracker = () => {
   const [addingTask, setAddingTask] = useState(false);
   const [message, setMessage] = useState(null); //shown on the start screen, e.g. after completing a task
   const [viewingAll, setViewingAll] = useState(false);
+  const [viewingWall, setViewingWall] = useState(false);
 
   async function fetchTasks() {
     try {
@@ -110,6 +112,10 @@ const TaskTracker = () => {
     fetchTasks();
   };
 
+  if (viewingWall) {
+    return <DoneWall onClose={() => setViewingWall(false)} />;
+  }
+
   if (viewingAll) {
     return <AllTasks onClose={handleAllTasksClosed} />;
   }
@@ -194,9 +200,14 @@ const TaskTracker = () => {
     <>
       {renderScreen()}
       {!addingTask && (
-        <Pressable onPress={() => setViewingAll(true)} accessibilityRole="button" hitSlop={8} style={styles.viewAll}>
-          <Text style={styles.viewAllText}>View All</Text>
-        </Pressable>
+        <>
+          <Pressable onPress={() => setViewingWall(true)} accessibilityRole="button" hitSlop={8} style={styles.doneWall}>
+            <Text style={styles.viewAllText}>Done Wall</Text>
+          </Pressable>
+          <Pressable onPress={() => setViewingAll(true)} accessibilityRole="button" hitSlop={8} style={styles.viewAll}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </Pressable>
+        </>
       )}
     </>
   );
@@ -207,6 +218,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Platform.OS === 'web' ? 16 : 52, //below the phone's status bar
     right: 16,
+  },
+  doneWall: {
+    position: 'absolute',
+    top: Platform.OS === 'web' ? 16 : 52,
+    left: 16,
   },
   viewAllText: {
     fontSize: 15,
