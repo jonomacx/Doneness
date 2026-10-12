@@ -1,6 +1,8 @@
 // Sample tasks, used by seed.js for the local database and by the demo
 // website (which keeps its tasks in the browser instead of DynamoDB).
-// A task's parentOfTaskId is the taskId of the bigger task it is part of.
+// A task's parentOfTaskId is the taskId of the task that comes after it, which can
+// only be done once this one is completed. Each task has at most one task before it
+// and one after it.
 
 const { v4: uuidv4 } = require('uuid');
 const dates = require('./dates');
@@ -12,12 +14,12 @@ const sampleTasks = (ownerId) => {
   const toughId = uuidv4();
   const samples = [
     { taskName: 'Overdue task from yesterday', dateRequired: dates.daysFromNow(-1), priorityFlag: false, toughnessFlag: false },
-    // a chain: winter jobs -> tough task -> its first step
+    // a chain, done in this order: gather what you need -> tough task -> winter jobs
     { taskId: winterId, taskName: 'Get the house ready for winter', dateRequired: dates.daysFromNow(14), priorityFlag: false, toughnessFlag: false },
     { taskId: toughId, taskName: 'Tough and priority task due today', dateRequired: today, priorityFlag: true, toughnessFlag: true, parentOfTaskId: winterId },
     { taskName: 'Gather what you need for the tough task', dateRequired: tomorrow, priorityFlag: false, toughnessFlag: false, parentOfTaskId: toughId },
     { taskName: 'Second tough priority task due today', dateRequired: today, priorityFlag: true, toughnessFlag: true },
-    { taskName: 'Easy priority task due today', dateRequired: today, priorityFlag: true, toughnessFlag: false, parentOfTaskId: winterId },
+    { taskName: 'Easy priority task due today', dateRequired: today, priorityFlag: true, toughnessFlag: false },
     { taskName: 'Normal task due today', dateRequired: today, priorityFlag: false, toughnessFlag: false },
     { taskName: 'Tough priority task due tomorrow', dateRequired: tomorrow, priorityFlag: true, toughnessFlag: true },
     { taskName: 'Finished task', dateRequired: today, priorityFlag: true, toughnessFlag: true, dateCompleted: today },

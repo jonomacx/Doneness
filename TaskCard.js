@@ -11,17 +11,17 @@ const LinkedCard = ({ label, task }) => (
   </View>
 );
 
-// A task shown as a card. The bigger task it is part of (`parent`) is shown above
-// it, and any tasks that are part of it (`subtasks`) below, each joined by a line.
-// Tapping the task's card calls `onPress`.
+// A task shown as a card, in the order the tasks are done: the task that must be done
+// before it (`subtasks`) above, and the task that comes after it (`parent`) below,
+// each joined by a line. Tapping the task's card calls `onPress`.
 const TaskCard = ({ task, parent, subtasks = [], onPress }) => (
   <View style={styles.stack}>
-    {!!parent && (
-      <>
-        <LinkedCard label="PART OF" task={parent} />
+    {subtasks.map((subtask) => (
+      <React.Fragment key={subtask.taskId}>
+        <LinkedCard label="DONE FIRST" task={subtask} />
         <View style={styles.connector} />
-      </>
-    )}
+      </React.Fragment>
+    ))}
 
     <Pressable
       onPress={onPress}
@@ -45,12 +45,12 @@ const TaskCard = ({ task, parent, subtasks = [], onPress }) => (
       <Text style={styles.hint}>Tap when you've finished</Text>
     </Pressable>
 
-    {subtasks.map((subtask) => (
-      <React.Fragment key={subtask.taskId}>
+    {!!parent && (
+      <>
         <View style={styles.connector} />
-        <LinkedCard label="SUBTASK" task={subtask} />
-      </React.Fragment>
-    ))}
+        <LinkedCard label="THEN" task={parent} />
+      </>
+    )}
   </View>
 );
 

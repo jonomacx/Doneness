@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from 'react-native';
 import ToggleButton from './ToggleButton';
-import { getOpenTasks, addTask } from './taskStore';
+import { getOpenTasks, addTask, setTaskAfter } from './taskStore';
+import { beforeOptions, afterOptions } from './taskLinks';
 import { toDay, today, tomorrow, daysFromNow, formatDay } from './dates';
 
 // Asks about the new task one question at a time, then saves it.
 // Steps: name -> due date (-> pick a date) -> priority -> toughness
-//        -> part of a bigger task? (-> pick the task) -> save
-// The bigger-task question is skipped when there are no other tasks.
+//        -> only after another task? (-> pick it) -> before another task? (-> pick it) -> save
+// Each linking question is skipped when no task can be picked for it (see taskLinks.js).
 const OWNER = 'Jono';
 
 // "25/12/2026" -> "2026-12-25T00:00:00.000Z", or null if it isn't a real date
@@ -26,12 +27,14 @@ const AddTask = ({ onDone, onCancel }) => {
   const [dateText, setDateText] = useState('');
   const [dateError, setDateError] = useState(false);
   const [openTasks, setOpenTasks] = useState(null); //null while loading
+  const [beforeTask, setBeforeTask] = useState(null); //the task that has to be done before the new one
+  const [savedTask, setSavedTask] = useState(null); //so "Try again" doesn't add the task twice
 
   const step = steps[steps.length - 1];
   const goTo = (next) => setSteps(steps.concat(next));
   const back = () => (steps.length > 1 ? setSteps(steps.slice(0, -1)) : onCancel());
 
-  //load the existing tasks now, for the "part of a bigger task" question
+  //load the existing tasks now, for the linking questions
   useEffect(() => {
     getOpenTasks(OWNER)
       .then((tasks) => setOpenTasks(tasks.sort((a, b) => a.taskName.localeCompare(b.taskName))))
@@ -41,16 +44,27 @@ const AddTask = ({ onDone, onCancel }) => {
       });
   }, []);
 
-  const save = async (parentOfTaskId) => {
-    const task = { ...fields, parentOfTaskId };
+  //`after` is the task the new one must be done before, and `before` the task that must be
+  //done before it (each may be null)
+  const save = async (after, before = beforeTask) => {
+    const task = { ...fields, parentOfTaskId: after ? after.taskId : undefined };
     setFields(task);
     try {
-      await addTask(OWNER, task);
+      const saved = savedTask || (await addTask(OWNER, task));
+      setSavedTask(saved);
+      if (before) await setTaskAfter(before, saved.taskId);
       onDone();
     } catch (error) {
       console.error('Error adding task:', error);
       if (step !== 'saveFailed') goTo('saveFailed');
     }
+  };
+
+  //ask a linking question only if there is a task that could be picked (or tasks are still loading)
+  const canPick = (options) => !openTasks || options.some((o) => !o.reason);
+  const askAfterQuestion = (before) => {
+    if (canPick(afterOptions(openTasks || [], before && before.taskId))) goTo('askAfter');
+    else save(null, before);
   };
 
   const setDue = (dateRequired) => {
@@ -133,33 +147,44 @@ const AddTask = ({ onDone, onCancel }) => {
       <YesNo
         onAnswer={(toughnessFlag) => {
           setFields({ ...fields, toughnessFlag });
-          //only ask about a bigger task if there are tasks to pick from (or they're still loading)
-          if (openTasks && !openTasks.length) save(undefined);
-          else goTo('isSubtask');
+          setBeforeTask(null);
+          if (canPick(beforeOptions(openTasks || []))) goTo('askBefore');
+          else askAfterQuestion(null);
         }}
       />
     );
-  } else if (step === 'isSubtask') {
-    question = 'Is it part of a bigger task?';
-    body = <YesNo onAnswer={(isSubtask) => (isSubtask ? goTo('pickParent') : save(undefined))} />;
-  } else if (step === 'pickParent') {
-    question = 'Which task is it part of?';
-    body = !openTasks ? (
-      <Text style={styles.taskName}>Loading your tasks...</Text>
-    ) : (
-      <ScrollView style={styles.list}>
-        {openTasks.map((task) => (
-          <Pressable
-            key={task.taskId}
-            onPress={() => save(task.taskId)}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-          >
-            <Text style={styles.rowName}>{task.taskName}</Text>
-            {!!task.dateRequired && <Text style={styles.rowMeta}>Due {formatDay(task.dateRequired)}</Text>}
-          </Pressable>
-        ))}
-      </ScrollView>
+  } else if (step === 'askBefore') {
+    question = 'Can this task only be done after another task has been completed?';
+    body = (
+      <YesNo
+        onAnswer={(yes) => {
+          setBeforeTask(null);
+          if (yes) goTo('pickBefore');
+          else askAfterQuestion(null);
+        }}
+      />
+    );
+  } else if (step === 'pickBefore') {
+    question = 'Which task has to be completed first?';
+    body = (
+      <PickList
+        options={openTasks && beforeOptions(openTasks)}
+        onPick={(task) => {
+          setBeforeTask(task);
+          askAfterQuestion(task);
+        }}
+      />
+    );
+  } else if (step === 'askAfter') {
+    question = 'Does this task need to be done before another task?';
+    body = <YesNo onAnswer={(yes) => (yes ? goTo('pickAfter') : save(null))} />;
+  } else if (step === 'pickAfter') {
+    question = 'Which task can only be done after this one?';
+    body = (
+      <PickList
+        options={openTasks && afterOptions(openTasks, beforeTask && beforeTask.taskId)}
+        onPick={(task) => save(task)}
+      />
     );
   } else if (step === 'saveFailed') {
     question = "Couldn't save the task";
@@ -167,7 +192,11 @@ const AddTask = ({ onDone, onCancel }) => {
       <>
         <Text style={styles.error}>Please try again.</Text>
         <View style={styles.option}>
-          <ToggleButton label="Try again" value={true} onToggle={() => save(fields.parentOfTaskId)} />
+          <ToggleButton
+            label="Try again"
+            value={true}
+            onToggle={() => save(fields.parentOfTaskId ? openTasks.find((t) => t.taskId === fields.parentOfTaskId) : null)}
+          />
         </View>
       </>
     );
@@ -198,6 +227,29 @@ const Option = ({ label, onPress }) => (
     <ToggleButton label={label} value={true} onToggle={onPress} />
   </View>
 );
+
+// A list of tasks to pick from. Tasks that can't be picked are greyed out with the reason.
+const PickList = ({ options, onPick }) =>
+  !options ? (
+    <Text style={styles.taskName}>Loading your tasks...</Text>
+  ) : (
+    <ScrollView style={styles.list}>
+      {options.map(({ task, reason }) => (
+        <Pressable
+          key={task.taskId}
+          onPress={() => !reason && onPick(task)}
+          disabled={!!reason}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !!reason }}
+          style={({ pressed }) => [styles.row, pressed && !reason && styles.rowPressed]}
+        >
+          <Text style={[styles.rowName, !!reason && styles.rowDisabled]}>{task.taskName}</Text>
+          {!!reason && <Text style={styles.rowMeta}>{reason}</Text>}
+          {!reason && !!task.dateRequired && <Text style={styles.rowMeta}>Due {formatDay(task.dateRequired)}</Text>}
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
 
 const YesNo = ({ onAnswer }) => (
   <View style={styles.yesNo}>
@@ -284,6 +336,9 @@ const styles = StyleSheet.create({
   rowName: {
     fontSize: 16,
     color: '#222',
+  },
+  rowDisabled: {
+    color: '#aaa',
   },
   rowMeta: {
     fontSize: 13,
