@@ -202,7 +202,7 @@ const TaskTracker = () => {
       {!addingTask && (
         <>
           <Pressable onPress={() => setViewingWall(true)} accessibilityRole="button" hitSlop={8} style={styles.doneWall}>
-            <Text style={styles.viewAllText}>Done Wall</Text>
+            <Text style={styles.viewAllText}>View Wall</Text>
           </Pressable>
           <Pressable onPress={() => setViewingAll(true)} accessibilityRole="button" hitSlop={8} style={styles.viewAll}>
             <Text style={styles.viewAllText}>View All</Text>

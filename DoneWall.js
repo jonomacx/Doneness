@@ -69,7 +69,7 @@ const DoneWall = ({ onClose }) => {
     <View style={styles.screen}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Done Wall</Text>
+          <Text style={styles.title}>Your Wall</Text>
           {!!tasks && !!tasks.length && (
             <Text style={styles.count}>
               {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'} done
