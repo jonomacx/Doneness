@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Modal, StyleSheet } from 'react-native';
 import ToggleButton from './ToggleButton';
-import { getOpenTasks, renameTask, deleteTask } from './taskStore';
+import { getOpenTasks, renameTask, deleteTask, completeTask } from './taskStore';
 import { formatDay } from './dates';
 import { taskAfter, taskBefore, orderTasks } from './taskLinks';
 
@@ -15,6 +15,7 @@ const AllTasks = ({ onClose }) => {
   const [loadFailed, setLoadFailed] = useState(false);
   const [editing, setEditing] = useState(null); //{ task, name } while renaming
   const [deleting, setDeleting] = useState(null); //the task waiting for delete confirmation
+  const [completing, setCompleting] = useState(null); //the task waiting for "have you completed it?"
   const [saveFailed, setSaveFailed] = useState(false);
   const [changed, setChanged] = useState(false);
 
@@ -43,6 +44,25 @@ const AllTasks = ({ onClose }) => {
       return;
     }
     setEditing(null);
+    setSaveFailed(false);
+    setChanged(true);
+    load();
+  };
+
+  const confirmCompleted = async (yes) => {
+    if (!yes) {
+      setCompleting(null);
+      setSaveFailed(false);
+      return;
+    }
+    try {
+      await completeTask(completing);
+    } catch (error) {
+      console.error('Error completing task:', error);
+      setSaveFailed(true);
+      return;
+    }
+    setCompleting(null);
     setSaveFailed(false);
     setChanged(true);
     load();
@@ -121,17 +141,31 @@ const AllTasks = ({ onClose }) => {
             {!!task.dateRequired && <Text style={styles.meta}>Due {formatDay(task.dateRequired)}</Text>}
             {!!before && <Text style={styles.meta}>Comes after: {before.taskName}</Text>}
             {!!after && <Text style={styles.meta}>Unlocks: {after.taskName}</Text>}
-            <Pressable
-              onPress={() => {
-                setEditing({ task, name: task.taskName });
-                setSaveFailed(false);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Edit ${task.taskName}`}
-              style={styles.editLink}
-            >
-              <Text style={styles.link}>Edit</Text>
-            </Pressable>
+            <View style={styles.actions}>
+              <Pressable
+                onPress={() => {
+                  setEditing({ task, name: task.taskName });
+                  setSaveFailed(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${task.taskName}`}
+                hitSlop={6}
+              >
+                <Text style={styles.link}>Edit</Text>
+              </Pressable>
+              <View style={styles.actionGap} />
+              <Pressable
+                onPress={() => {
+                  setCompleting(task);
+                  setSaveFailed(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Mark ${task.taskName} as completed`}
+                hitSlop={6}
+              >
+                <Text style={[styles.link, styles.completedLink]}>Completed</Text>
+              </Pressable>
+            </View>
           </>
         )}
       </View>
@@ -177,6 +211,24 @@ const AllTasks = ({ onClose }) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.listContent}>{list}</ScrollView>
+
+      <Modal visible={!!completing} transparent animationType="fade" onRequestClose={() => confirmCompleted(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.prompt}>
+            <Text style={styles.question}>Have you completed the task?</Text>
+            {!!completing && <Text style={styles.promptTask}>{completing.taskName}</Text>}
+            {saveFailed && <Text style={styles.error}>Couldn't save that. Please try again.</Text>}
+            <View style={styles.editButtons}>
+              <View style={styles.half}>
+                <ToggleButton label="Yes" value={true} onToggle={confirmCompleted} />
+              </View>
+              <View style={styles.half}>
+                <ToggleButton label="No" value={false} onToggle={confirmCompleted} />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={!!deleting} transparent animationType="fade" onRequestClose={() => confirmDelete(false)}>
         <View style={styles.backdrop}>
@@ -311,9 +363,17 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 6,
   },
-  editLink: {
-    alignSelf: 'flex-start',
+  //Edit and Completed, side by side under the task details
+  actions: {
+    flexDirection: 'row',
     marginTop: 8,
+  },
+  actionGap: {
+    width: 24,
+  },
+  completedLink: {
+    color: '#1a7f37',
+    fontWeight: '600',
   },
   link: {
     fontSize: 15,
