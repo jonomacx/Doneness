@@ -5,7 +5,6 @@ import TaskCard from './TaskCard';
 import AddTask from './AddTask';
 import AllTasks from './AllTasks';
 import DoneWall from './DoneWall';
-//import ToggleSwitch from './ToggleSwitch';
 
 import { getOpenTasks, completeTask } from './taskStore';
 import { chooseTask, pickRandom } from './chooseTask';
@@ -16,7 +15,6 @@ const TaskTracker = () => {
 
   const [takeTask, setTakeTask] = useState(false);
   const [task, setTask] = useState(undefined); //undefined while loading, null if there are none
-  const [clearDistractions, setClearDistractions] = useState(false);
   const [toughChoice, setToughChoice] = useState(null); //{ tough, easy } when the user gets to choose
   const [openTasks, setOpenTasks] = useState([]); //used to look up the task's parent and subtasks
   const [askCompleted, setAskCompleted] = useState(false); //showing "have you completed the task?"
@@ -50,7 +48,6 @@ const TaskTracker = () => {
 
   const handleTakeTaskToggle = (value) => {
     setTakeTask(value);
-    setClearDistractions(false);
     setMessage(null);
   };
 
@@ -66,10 +63,6 @@ const TaskTracker = () => {
     setToughChoice(null);
     setTask(undefined);
     fetchTasks();
-  };
-
-  const handleClearDistractionsToggle = (value) => {
-    setClearDistractions(value);
   };
 
   const handleToughToggle = (value) => {
@@ -105,7 +98,6 @@ const TaskTracker = () => {
     setViewingAll(false);
     if (!changed) return;
     setTakeTask(false);
-    setClearDistractions(false);
     setToughChoice(null);
     setTask(undefined);
     setMessage(null);
@@ -137,16 +129,6 @@ const TaskTracker = () => {
           <View style={styles.gap} />
           <ToggleButton label="Add a task" value={true} onToggle={handleAddTaskToggle} />
         </View>
-      );
-    }
-
-    if (!clearDistractions) {
-      return (
-        <ToggleButton //ToggleButton - will be updated to ToggleSwitch later
-          label="Have you cleared all distractions and ready to start?"
-          value={true}
-          onToggle={handleClearDistractionsToggle}
-        />
       );
     }
 
