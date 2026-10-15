@@ -3,8 +3,9 @@
 // Running locally (phone, or the browser on localhost) it uses DynamoDB via db.js.
 // On the public demo website (e.g. GitHub Pages) there is no database it can safely
 // reach, so it uses the sample tasks instead and saves changes in the visitor's own
-// browser (localStorage). The samples start fresh each day so their dates stay current;
-// tasks the visitor added themselves, and completed tasks, are kept.
+// browser (localStorage). The samples are only examples: they start fresh each day so
+// their dates stay current, and they never go on the wall. Tasks the visitor added
+// themselves are kept, completed or not.
 
 import { Platform } from 'react-native';
 import { docClient, TABLE } from './db';
@@ -26,8 +27,9 @@ function loadDemoTasks(ownerId) {
       if (saved && saved.day === today()) demo = saved;
     } catch (e) {}
   }
+  if (demo) dropCompletedSamples();
   if (!demo || demo.day !== today()) {
-    //new day: fresh samples, plus the tasks the visitor added and everything completed
+    //new day: fresh samples, plus the tasks the visitor added
     let previous = demo;
     if (!previous) {
       try {
@@ -35,11 +37,22 @@ function loadDemoTasks(ownerId) {
       } catch (e) {}
     }
     const addedIds = (previous && previous.addedIds) || [];
-    const added = previous ? previous.tasks.filter((t) => addedIds.includes(t.taskId) || t.dateCompleted) : [];
+    const added = previous ? previous.tasks.filter((t) => addedIds.includes(t.taskId)) : [];
     demo = { day: today(), tasks: sampleTasks(ownerId).concat(added), addedIds };
     saveDemoTasks();
   }
   return demo.tasks;
+}
+
+// Completed sample tasks are thrown away so the wall only shows the visitor's own work.
+// (Older versions of the demo kept them, so this also cleans those out.)
+function dropCompletedSamples() {
+  const addedIds = demo.addedIds || [];
+  const kept = demo.tasks.filter((t) => !t.dateCompleted || addedIds.includes(t.taskId));
+  if (kept.length !== demo.tasks.length) {
+    demo.tasks = kept;
+    saveDemoTasks();
+  }
 }
 
 function saveDemoTasks() {
@@ -104,6 +117,7 @@ export async function completeTask(task) {
   if (isDemo) {
     const tasks = loadDemoTasks(task.ownerId);
     demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, dateCompleted } : t));
+    dropCompletedSamples();
     saveDemoTasks();
     return;
   }

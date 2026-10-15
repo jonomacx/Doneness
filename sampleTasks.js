@@ -22,7 +22,6 @@ const sampleTasks = (ownerId) => {
     { taskName: 'Easy priority task due today', dateRequired: today, priorityFlag: true, toughnessFlag: false },
     { taskName: 'Normal task due today', dateRequired: today, priorityFlag: false, toughnessFlag: false },
     { taskName: 'Tough priority task due tomorrow', dateRequired: tomorrow, priorityFlag: true, toughnessFlag: true },
-    { taskName: 'Finished task', dateRequired: today, priorityFlag: true, toughnessFlag: true, dateCompleted: today },
   ];
   return samples.map((s, i) => ({
     ownerId,
