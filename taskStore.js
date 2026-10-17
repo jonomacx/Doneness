@@ -1,16 +1,11 @@
 // Where the app gets its tasks from.
 //
 // Running locally (phone, or the browser on localhost) it uses DynamoDB via db.js.
-// On the public demo website (e.g. GitHub Pages) there is no database it can safely
-// reach, so it uses the sample tasks instead and saves changes in the visitor's own
-// browser (localStorage). The samples are only examples: they start fresh each day so
-// their dates stay current, and they never go on the wall. Tasks the visitor added
-// themselves are kept, completed or not.
+// On the public website (e.g. GitHub Pages) there is no database it can safely reach,
+// so it keeps the visitor's tasks in their own browser (localStorage).
 
 import { Platform } from 'react-native';
 import { docClient, TABLE } from './db';
-import { sampleTasks } from './sampleTasks';
-import { today } from './dates';
 
 export const isDemo =
   Platform.OS === 'web' &&
@@ -18,41 +13,21 @@ export const isDemo =
   !['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 const DEMO_KEY = 'doneness.demo';
-let demo = null; //{ day, tasks, addedIds }, kept in memory too in case the browser blocks storage
+let demo = null; //{ tasks, addedIds }, kept in memory too in case the browser blocks storage
 
-function loadDemoTasks(ownerId) {
-  if (!demo || demo.day !== today()) {
+function loadDemoTasks() {
+  if (!demo) {
+    let saved = null;
     try {
-      const saved = JSON.parse(window.localStorage.getItem(DEMO_KEY));
-      if (saved && saved.day === today()) demo = saved;
+      saved = JSON.parse(window.localStorage.getItem(DEMO_KEY));
     } catch (e) {}
-  }
-  if (demo) dropCompletedSamples();
-  if (!demo || demo.day !== today()) {
-    //new day: fresh samples, plus the tasks the visitor added
-    let previous = demo;
-    if (!previous) {
-      try {
-        previous = JSON.parse(window.localStorage.getItem(DEMO_KEY));
-      } catch (e) {}
-    }
-    const addedIds = (previous && previous.addedIds) || [];
-    const added = previous ? previous.tasks.filter((t) => addedIds.includes(t.taskId)) : [];
-    demo = { day: today(), tasks: sampleTasks(ownerId).concat(added), addedIds };
-    saveDemoTasks();
+    const addedIds = (saved && saved.addedIds) || [];
+    //only keep the tasks the visitor added: earlier versions also stored daily example tasks
+    const savedTasks = (saved && saved.tasks) || [];
+    demo = { tasks: savedTasks.filter((t) => addedIds.includes(t.taskId)), addedIds };
+    if (!saved || saved.day || demo.tasks.length !== savedTasks.length) saveDemoTasks();
   }
   return demo.tasks;
-}
-
-// Completed sample tasks are thrown away so the wall only shows the visitor's own work.
-// (Older versions of the demo kept them, so this also cleans those out.)
-function dropCompletedSamples() {
-  const addedIds = demo.addedIds || [];
-  const kept = demo.tasks.filter((t) => !t.dateCompleted || addedIds.includes(t.taskId));
-  if (kept.length !== demo.tasks.length) {
-    demo.tasks = kept;
-    saveDemoTasks();
-  }
 }
 
 function saveDemoTasks() {
@@ -64,7 +39,7 @@ function saveDemoTasks() {
 // All of this owner's tasks that have not been completed.
 export async function getOpenTasks(ownerId) {
   if (isDemo) {
-    return loadDemoTasks(ownerId).filter((task) => task.ownerId === ownerId && !task.dateCompleted);
+    return loadDemoTasks().filter((task) => task.ownerId === ownerId && !task.dateCompleted);
   }
 
   const params = {
@@ -90,7 +65,7 @@ export async function getOpenTasks(ownerId) {
 export async function getCompletedTasks(ownerId) {
   let items;
   if (isDemo) {
-    items = loadDemoTasks(ownerId).filter((task) => task.ownerId === ownerId && task.dateCompleted);
+    items = loadDemoTasks().filter((task) => task.ownerId === ownerId && task.dateCompleted);
   } else {
     const params = {
       TableName: TABLE,
@@ -115,9 +90,8 @@ export async function getCompletedTasks(ownerId) {
 export async function completeTask(task) {
   const dateCompleted = new Date().toISOString();
   if (isDemo) {
-    const tasks = loadDemoTasks(task.ownerId);
+    const tasks = loadDemoTasks();
     demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, dateCompleted } : t));
-    dropCompletedSamples();
     saveDemoTasks();
     return;
   }
@@ -145,7 +119,7 @@ export async function addTask(ownerId, fields) {
   });
 
   if (isDemo) {
-    loadDemoTasks(ownerId);
+    loadDemoTasks();
     demo.tasks = demo.tasks.concat(task);
     demo.addedIds = (demo.addedIds || []).concat(task.taskId);
     saveDemoTasks();
@@ -159,7 +133,7 @@ export async function addTask(ownerId, fields) {
 // Set the task that comes after `task` (its parentOfTaskId), or remove it with null.
 export async function setTaskAfter(task, parentOfTaskId) {
   if (isDemo) {
-    const tasks = loadDemoTasks(task.ownerId);
+    const tasks = loadDemoTasks();
     demo.tasks = tasks.map((t) => {
       if (t.taskId !== task.taskId) return t;
       const { parentOfTaskId: _old, ...rest } = t;
@@ -182,7 +156,7 @@ export async function setTaskAfter(task, parentOfTaskId) {
 // Change a task's name.
 export async function renameTask(task, taskName) {
   if (isDemo) {
-    const tasks = loadDemoTasks(task.ownerId);
+    const tasks = loadDemoTasks();
     demo.tasks = tasks.map((t) => (t.taskId === task.taskId ? { ...t, taskName } : t));
     saveDemoTasks();
     return;
@@ -205,7 +179,7 @@ export async function deleteTask(task, openTasks) {
   if (before) await setTaskAfter(before, task.parentOfTaskId || null);
 
   if (isDemo) {
-    const tasks = loadDemoTasks(task.ownerId);
+    const tasks = loadDemoTasks();
     demo.tasks = tasks.filter((t) => t.taskId !== task.taskId);
     demo.addedIds = (demo.addedIds || []).filter((id) => id !== task.taskId);
     saveDemoTasks();
